@@ -1,0 +1,112 @@
+import json
+import matplotlib.pyplot as plt
+
+def fcfs_scheduling(processes):
+    # Sort processes by arrival time
+    for process in processes:
+        process['id'] = int(process['id'])
+        process['arrivalTime'] = int(process['arrivalTime'])  # Convert to integer
+        process['burstTime'] = int(process['burstTime'])  # Convert to integer
+        process['priority'] = int(process['priority'])  # Convert to integer
+
+    processes.sort(key=lambda x: x['arrivalTime'])
+    
+    completion_time = []
+    turnaround_time = []
+    waiting_time = []
+    
+    start_time = 0
+    for process in processes:
+        if start_time < process['arrivalTime']:
+            start_time = process['arrivalTime']
+        
+        comp_time = start_time + process['burstTime']
+        tat = comp_time - process['arrivalTime']
+        wt = tat - process['burstTime']
+        
+        completion_time.append(comp_time)
+        turnaround_time.append(tat)
+        waiting_time.append(wt)
+        
+        start_time = comp_time
+        
+        process['completion_time'] = comp_time
+        process['turnaround_time'] = tat
+        process['waiting_time'] = wt
+    
+    avg_tat = sum(turnaround_time) / len(turnaround_time)
+    avg_wt = sum(waiting_time) / len(waiting_time)
+    
+    return processes, avg_tat, avg_wt
+
+def draw_gantt_chart(processes):
+    fig, ax = plt.subplots(figsize=(10, 4))
+
+    process_names = []
+    start_times = []
+    burst_times = []
+
+    for process in processes:
+        process_names.append(f"P{process['id']}")
+        start_times.append(process['completion_time'] - process['burstTime'])
+        burst_times.append(process['burstTime'])
+
+    # Plot Gantt chart
+    ax.barh(process_names, burst_times, left=start_times, height=0.5, color='skyblue', edgecolor='black')
+
+    # Label each bar with start time and end time
+    for i, process in enumerate(processes):
+        start = start_times[i]
+        end = start + burst_times[i]
+        ax.text(start + burst_times[i] / 2, i, f"{start}-{end}", ha='center', va='center', fontsize=10, color='black')
+
+    ax.set_xlabel("Time")
+    ax.set_title("Gantt Chart for FCFS Scheduling")
+    ax.invert_yaxis()  # To display in order of execution
+    plt.grid(axis='x', linestyle='--', alpha=0.7)
+    plt.show()
+
+def draw_gantt_chart_single_row(processes):
+    fig, ax = plt.subplots(figsize=(12, 2))
+    
+    start_time = 0
+    for process in processes:
+        start = process['completion_time'] - process['burstTime']
+        end = process['completion_time']
+        
+        # Draw a bar from start to end
+        ax.barh(0, end - start, left=start, height=0.5, color='skyblue', edgecolor='black')
+        
+        # Place process name inside the bar
+        ax.text((start + end) / 2, 0, f"P{process['id']}", ha='center', va='center', fontsize=10, color='black')
+
+    ax.set_xlabel("Time")
+    ax.set_title("Gantt Chart for FCFS Scheduling (Single Row)")
+    ax.set_yticks([])  # Hide y-axis labels
+    ax.set_xticks(range(0, max(p['completion_time'] for p in processes) + 1))  # Show time scale
+    ax.set_xlim(0, max(p['completion_time'] for p in processes))
+    plt.grid(axis='x', linestyle='--', alpha=0.7)
+    plt.show()
+
+
+def main():
+    # Load process data from JSON file
+    with open('processes.json', 'r') as file:
+        processes = json.load(file)
+    
+    scheduled_processes, avg_tat, avg_wt = fcfs_scheduling(processes)
+    
+    # Display results
+    print("Process Schedule:")
+    print("ID  Arrival  Burst  Completion  TAT  WT")
+    for p in scheduled_processes:
+        print(f"{p['id']:3} {p['arrivalTime']:7} {p['burstTime']:5} {p['completion_time']:10} {p['turnaround_time']:4} {p['waiting_time']:3}")
+    
+    print(f"\nAverage Turnaround Time: {avg_tat:.2f}")
+    print(f"Average Waiting Time: {avg_wt:.2f}")
+
+    draw_gantt_chart(scheduled_processes)
+    draw_gantt_chart_single_row(scheduled_processes)
+    
+if __name__ == "__main__":
+    main()
