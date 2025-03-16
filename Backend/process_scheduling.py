@@ -1,5 +1,8 @@
 import json
 import matplotlib.pyplot as plt
+import sys
+import io
+import base64
 
 def fcfs_scheduling(processes):
     # Sort processes by arrival time
@@ -86,7 +89,17 @@ def draw_gantt_chart_single_row(processes):
     ax.set_xticks(range(0, max(p['completion_time'] for p in processes) + 1))  # Show time scale
     ax.set_xlim(0, max(p['completion_time'] for p in processes))
     plt.grid(axis='x', linestyle='--', alpha=0.7)
-    plt.show()
+    # plt.show()
+    
+    # Convert plot to Base64
+    img_io = io.BytesIO()
+    plt.savefig(img_io, format="png")
+    img_io.seek(0)
+    img_base64 = base64.b64encode(img_io.read()).decode('utf-8')
+    
+    plt.close(fig)  # Close the figure to prevent memory leaks
+    # print("Sending File...")
+    return img_base64
 
 
 def main():
@@ -109,4 +122,8 @@ def main():
     draw_gantt_chart_single_row(scheduled_processes)
     
 if __name__ == "__main__":
-    main()
+    input_data = json.loads(sys.stdin.read())
+    # main()
+    scheduled_processes, avg_tat, avg_wt = fcfs_scheduling(input_data)
+    result = draw_gantt_chart_single_row(scheduled_processes)
+    print(result)

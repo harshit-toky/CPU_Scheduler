@@ -24,14 +24,14 @@ export default function ProcessTable() {
       )
     );
   };
-
+  const [chart, setChart] = useState(null);
   const handleSubmit = async () => {
     if(processes.length  <= 2){
       alert("Please Enter "+ (3-processes.length) +" more processes")
       return;
     }
     const jsonData = JSON.stringify(processes);
-  
+    
     try {
       const response = await fetch("http://127.0.0.1:5000/submit", {
         method: "POST",
@@ -39,9 +39,13 @@ export default function ProcessTable() {
         body: jsonData,
       });
   
-      const result = await response.json();
-      console.log("Server Response:", result);
-      alert(result.message);
+      const data = await response.json();
+      if (data.chart) {
+          setChart(`data:image/png;base64,${data.chart}`);
+      } else {
+          console.error("Error:", data.error);
+      }
+      
     } catch (error) {
       console.error("Error sending data:", error);
       alert("Failed to send data to server.");
@@ -151,10 +155,19 @@ export default function ProcessTable() {
       
       <div className="w-fit mx-auto mt-4">
         <button 
-          onClick={downloadJSON} 
+          onClick={handleSubmit} 
           className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
           Submit Data
         </button>
+      </div>
+
+      <div className="w-fit mx-auto m-10">
+        {chart && (
+            <>
+                <img src={chart} alt="Gantt Chart" height={100} />
+                {alert("Gantt chart generated Successfully")}
+            </>
+        )}
       </div>
     </div>
   );
