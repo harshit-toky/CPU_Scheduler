@@ -1,0 +1,26 @@
+[
+    {
+        "id": 1,
+        "start": 0,
+        "percent_complete": 10.0,
+        "end": 1
+    },
+    {
+        "id": 2,
+        "start": 1,
+        "percent_complete": 100.0,
+        "end": 6
+    },
+    {
+        "id": 1,
+        "start": 6,
+        "percent_complete": 90.0,
+        "end": 15
+    },
+    {
+        "id": 3,
+        "start": 15,
+        "percent_complete": 100.0,
+        "end": 35
+    }
+]

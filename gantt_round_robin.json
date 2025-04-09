@@ -1,0 +1,38 @@
+[
+    {
+        "id": 1,
+        "start": 1,
+        "end": 3,
+        "percent_complete": 40.0
+    },
+    {
+        "id": 2,
+        "start": 3,
+        "end": 5,
+        "percent_complete": 100.0
+    },
+    {
+        "id": 1,
+        "start": 5,
+        "end": 7,
+        "percent_complete": 40.0
+    },
+    {
+        "id": 3,
+        "start": 7,
+        "end": 9,
+        "percent_complete": 40.0
+    },
+    {
+        "id": 1,
+        "start": 9,
+        "end": 10,
+        "percent_complete": 20.0
+    },
+    {
+        "id": 3,
+        "start": 10,
+        "end": 13,
+        "percent_complete": 60.0
+    }
+]

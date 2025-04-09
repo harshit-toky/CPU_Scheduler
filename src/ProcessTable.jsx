@@ -1,7 +1,15 @@
 import { useState } from "react";
+import GanttChart from "./GanntChar";
+import Popup from "./Popup";
 
 export default function ProcessTable() {
   const [processes, setProcesses] = useState([]);
+  const [ganttData, setGanttData] = useState([]);
+  const [sjfGanttData, setSjfGanttData] = useState([]);
+  const [priorityGanttData, setPriorityGanttData] = useState([]);
+  const [showPopup, setShowPopup] = useState(false);
+  const [roundRobinGanttData, setRoundRobinGanttData] = useState([]);
+
 
   const addProcess = () => {
     const lastProcess = processes[processes.length - 1];
@@ -24,7 +32,96 @@ export default function ProcessTable() {
       )
     );
   };
-  const [chart, setChart] = useState(null);
+
+  const handlePopupSubmit = (data) => {
+    console.log("Selected Algorithms:", data.selected);
+    console.log("Time Quantum:", data.timeQuantum);
+    setGanttData([])
+    setPriorityGanttData([])
+    setRoundRobinGanttData([])
+    setSjfGanttData([])
+  
+    // Example functions for each algorithm
+    if (data.selected.includes("FCFS")) {
+      get_fcfs_scheduling_data();
+    }
+    if (data.selected.includes("SJF")) {
+      get_sjf_scheduling_data();
+    }
+    if (data.selected.includes("Priority")) {
+      get_priority_scheduling_data();
+    }
+    if (data.selected.includes("Round Robin")) {
+      get_round_robin_data(data.timeQuantum); // pass quantum if needed
+    }
+  };
+  
+
+  const get_fcfs_scheduling_data = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/fcfs_scheduling');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      const data = await response.json();
+      console.log("FCFS Scheduling Gantt Log:", data);
+      setGanttData(data); 
+    } catch (error) {
+      console.error("Error fetching FCFS scheduling data:", error);
+    }
+  };
+
+  const get_sjf_scheduling_data = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/sjf_scheduling');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      const data = await response.json();
+      console.log("SJF Scheduling Gantt Log:", data);
+      setSjfGanttData(data); 
+    } catch (error) {
+      console.error("Error fetching FCFS scheduling data:", error);
+    }
+  };
+
+  const get_priority_scheduling_data = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/priority_scheduling');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      const data = await response.json();
+      console.log("Priority Scheduling Gantt Log:", data);
+      setPriorityGanttData(data); 
+    } catch (error) {
+      console.error("Error fetching FCFS scheduling data:", error);
+    }
+  };
+  
+  const get_round_robin_data = async (quantum) => {
+    try {
+      const response = await fetch(`http://localhost:5000/roundRobin_scheduling?timeQuantum=${quantum}`);
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      const data = await response.json();
+      console.log("Round Robin Gantt Log:", data);
+      setRoundRobinGanttData(data); // Make sure this state exists
+    } catch (error) {
+      console.error("Error fetching Round Robin data:", error);
+    }
+  };
+  
+  
   const handleSubmit = async () => {
     if(processes.length  <= 2){
       alert("Please Enter "+ (3-processes.length) +" more processes")
@@ -40,16 +137,15 @@ export default function ProcessTable() {
       });
   
       const data = await response.json();
-      if (data.chart) {
-          setChart(`data:image/png;base64,${data.chart}`);
-      } else {
-          console.error("Error:", data.error);
-      }
+      setShowPopup(true);
       
     } catch (error) {
       console.error("Error sending data:", error);
       alert("Failed to send data to server.");
     }
+    // await get_fcfs_scheduling_data();
+    // await get_sjf_scheduling_data();
+    // await get_priority_scheduling_data();
   };
   
 
@@ -160,15 +256,44 @@ export default function ProcessTable() {
           Submit Data
         </button>
       </div>
-
-      <div className="w-fit mx-auto m-10">
+      <Popup
+        isOpen={showPopup}
+        onClose={() => setShowPopup(false)}
+        onSubmit={handlePopupSubmit}
+      />
+      {/* <div className="w-fit mx-auto m-10">
         {chart && (
             <>
                 <img src={chart} alt="Gantt Chart" height={100} />
                 {alert("Gantt chart generated Successfully")}
             </>
-        )}
-      </div>
+        )} */}
+      {/* </div> */}
+      {/* Gantt chart section */}
+      {ganttData.length > 0 && (
+        <div className="mt-4">
+          {/* <h2 className="text-xl font-semibold mb-2">Gantt Chart</h2> */}
+          <GanttChart algoTitle={"FCFS Scheduling Algorithm"} ganttData={ganttData} />
+        </div>
+      )}
+      {sjfGanttData.length > 0 && (
+        <div className="">
+          {/* <h2 className="text-xl font-semibold mb-2">Gantt Chart</h2> */}
+          <GanttChart algoTitle = {"SJF Scheduling Algorithm"} ganttData={sjfGanttData} />
+        </div>
+      )}
+      {priorityGanttData.length > 0 && (
+        <div className="">
+          {/* <h2 className="text-xl font-semibold mb-2">Gantt Chart</h2> */}
+          <GanttChart algoTitle = {"Priority Scheduling Algorithm"} ganttData={priorityGanttData} />
+        </div>
+      )}
+      {roundRobinGanttData.length > 0 && (
+        <div className="">
+          {/* <h2 className="text-xl font-semibold mb-2">Gantt Chart</h2> */}
+          <GanttChart algoTitle = {"Round Robin Scheduling Algorithm"} ganttData={roundRobinGanttData} />
+        </div>
+      )}
     </div>
   );
 }

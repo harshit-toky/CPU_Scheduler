@@ -42,6 +42,136 @@ def fcfs_scheduling(processes):
     
     return processes, avg_tat, avg_wt
 
+def sjf_scheduling_preemptive(processes):
+    for process in processes:
+        process['id'] = int(process['id'])
+        process['arrivalTime'] = int(process['arrivalTime'])
+        process['burstTime'] = int(process['burstTime'])
+        process['remaining_time'] = process['burstTime']
+
+    time = 0
+    completed = []
+    ready_queue = []
+    gantt_log = []
+    current = None
+
+    processes.sort(key=lambda x: x['arrivalTime'])
+
+    while processes or ready_queue or current:
+        while processes and processes[0]['arrivalTime'] <= time:
+            ready_queue.append(processes.pop(0))
+
+        if current:
+            ready_queue.append(current)
+            current = None
+
+        if ready_queue:
+            ready_queue.sort(key=lambda x: x['remaining_time'])
+            current = ready_queue.pop(0)
+
+            # Execute for 1 unit
+            start = time
+            time += 1
+            current['remaining_time'] -= 1
+            gantt_log.append({'id': current['id'], 'start': start, 'end': time})
+
+            if current['remaining_time'] == 0:
+                current['completion_time'] = time
+                current['turnaround_time'] = time - current['arrivalTime']
+                current['waiting_time'] = current['turnaround_time'] - current['burstTime']
+                completed.append(current)
+                current = None
+        else:
+            time += 1
+
+    # Merge same-process execution segments
+    merged = []
+    for entry in gantt_log:
+        if merged and merged[-1]['id'] == entry['id'] and merged[-1]['end'] == entry['start']:
+            merged[-1]['end'] = entry['end']
+        else:
+            merged.append(entry)
+
+    avg_tat = sum(p['turnaround_time'] for p in completed) / len(completed)
+    avg_wt = sum(p['waiting_time'] for p in completed) / len(completed)
+
+    return completed, avg_tat, avg_wt, merged
+
+
+
+
+def priority_scheduling(processes):
+    for process in processes:
+        process['id'] = int(process['id'])
+        process['arrivalTime'] = int(process['arrivalTime'])
+        process['burstTime'] = int(process['burstTime'])
+        process['priority'] = int(process['priority'])
+
+    time = 0
+    completed = []
+    waiting_list = []
+
+    while processes or waiting_list:
+        waiting_list.extend([p for p in processes if p['arrivalTime'] <= time])
+        processes = [p for p in processes if p['arrivalTime'] > time]
+
+        if waiting_list:
+            waiting_list.sort(key=lambda x: x['priority'])
+            current = waiting_list.pop(0)
+            start = time
+            time += current['burstTime']
+            current['completion_time'] = time
+            current['turnaround_time'] = time - current['arrivalTime']
+            current['waiting_time'] = current['turnaround_time'] - current['burstTime']
+            completed.append(current)
+        else:
+            time += 1
+
+    avg_tat = sum(p['turnaround_time'] for p in completed) / len(completed)
+    avg_wt = sum(p['waiting_time'] for p in completed) / len(completed)
+
+    return completed, avg_tat, avg_wt
+
+
+def round_robin_scheduling(processes, time_quantum):
+    for process in processes:
+        process['id'] = int(process['id'])
+        process['arrivalTime'] = int(process['arrivalTime'])
+        process['burstTime'] = int(process['burstTime'])
+        process['remaining_time'] = process['burstTime']
+
+    time = 0
+    queue = []
+    completed = []
+    gantt_log = []
+    last_pid = -1
+    processes.sort(key=lambda x: x['arrivalTime'])
+
+    while processes or queue:
+        while processes and processes[0]['arrivalTime'] <= time:
+            queue.append(processes.pop(0))
+
+        if queue:
+            current = queue.pop(0)
+            start = time
+            exec_time = min(time_quantum, current['remaining_time'])
+            time += exec_time
+            current['remaining_time'] -= exec_time
+            gantt_log.append({'id': current['id'], 'start': start, 'end': time})
+
+            while processes and processes[0]['arrivalTime'] <= time:
+                queue.append(processes.pop(0))
+
+            if current['remaining_time'] > 0:
+                queue.append(current)
+            else:
+                current['completion_time'] = time
+                current['turnaround_time'] = time - current['arrivalTime']
+                current['waiting_time'] = current['turnaround_time'] - current['burstTime']
+                completed.append(current)
+        else:
+            time += 1
+
 def draw_gantt_chart(processes):
     fig, ax = plt.subplots(figsize=(10, 4))
 
@@ -123,7 +253,11 @@ def main():
     
 if __name__ == "__main__":
     input_data = json.loads(sys.stdin.read())
+    # with open('processes.json', 'r') as file:
+    #     processes = json.load(file)
     # main()
     scheduled_processes, avg_tat, avg_wt = fcfs_scheduling(input_data)
     result = draw_gantt_chart_single_row(scheduled_processes)
+    # scheduled_processes, avg_tat, avg_wt, merged = sjf_scheduling_preemptive(processes)
+    # result = draw_gantt_chart(scheduled_processes)
     print(result)
