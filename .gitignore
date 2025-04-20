@@ -21,3 +21,10 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+labeled_scheduling_dataset.json
+best_algo_model.pkl
+Backend/best_algo_predictor_model.pkl
+labeled_scheduling_dataset.json
+Backend/labeled_scheduling_dataset.json
+best_algo_model.pkl
+Backend/best_algo_predictor_model.pkl
