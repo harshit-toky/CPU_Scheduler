@@ -1,6 +1,6 @@
-import { useState } from "react";
-import GanttChart from "./GanntChar";
+import { useState, useRef } from "react";
 import Popup from "./Popup";
+import AlgoCharts from "./AlgoCharts";
 
 export default function ProcessTable() {
   const [processes, setProcesses] = useState([]);
@@ -9,6 +9,30 @@ export default function ProcessTable() {
   const [priorityGanttData, setPriorityGanttData] = useState([]);
   const [showPopup, setShowPopup] = useState(false);
   const [roundRobinGanttData, setRoundRobinGanttData] = useState([]);
+  // const [responseType, setResponseType] = useState('');
+  const [aiAlgo, setAiAlgo] = useState(null); // FCFS, SJF, etc.
+  const [remainingAlgos, setRemainingAlgos] = useState([]);
+  const [showSoftMetrics, setShowSoftMetrics] = useState(false);
+  const [showAiWhy, setShowAiWhy] = useState(false);
+  const whyRef = useRef(null);
+  const metricsRef = useRef(null);
+  const [aiData, setAiData] = useState(null);
+
+
+  const scrollToWhy = () => {
+    setShowAiWhy(true);
+    setTimeout(() => {
+      whyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100); // delay for rendering
+  };
+  
+  const scrollToMetrics = () => {
+    setShowSoftMetrics(true);
+    setTimeout(() => {
+      metricsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  };
+  
 
 
   const addProcess = () => {
@@ -32,29 +56,77 @@ export default function ProcessTable() {
       )
     );
   };
+  // const handleResponseType = (type) => {
+  //   setResponseType(type); // "AI" or "Simple"
+  //   console.log("Type Selected :", type)
+  // };
 
   const handlePopupSubmit = (data) => {
-    console.log("Selected Algorithms:", data.selected);
-    console.log("Time Quantum:", data.timeQuantum);
-    setGanttData([])
-    setPriorityGanttData([])
-    setRoundRobinGanttData([])
-    setSjfGanttData([])
+    setGanttData([]);
+    setPriorityGanttData([]);
+    setRoundRobinGanttData([]);
+    setSjfGanttData([]);
+    setShowSoftMetrics(false);
+    setShowAiWhy(false);
   
-    // Example functions for each algorithm
-    if (data.selected.includes("FCFS")) {
-      get_fcfs_scheduling_data();
-    }
-    if (data.selected.includes("SJF")) {
-      get_sjf_scheduling_data();
-    }
-    if (data.selected.includes("Priority")) {
-      get_priority_scheduling_data();
-    }
-    if (data.selected.includes("Round Robin")) {
-      get_round_robin_data(data.timeQuantum); // pass quantum if needed
+    if (data.responseType === "AI") {
+      console.log("Parent AI Response Selected");
+      get_ai_data();
+    }else{
+  
+      if (!data || !Array.isArray(data.selected)) {
+        console.warn("Invalid data or missing selected algorithms");
+        return;
+      }
+    
+      console.log("Selected Algorithms:", data.selected);
+      console.log("Time Quantum:", data.timeQuantum);
+    
+      if (data.selected.includes("FCFS")) {
+        get_fcfs_scheduling_data();
+      }
+      if (data.selected.includes("SJF")) {
+        get_sjf_scheduling_data();
+      }
+      if (data.selected.includes("Priority")) {
+        get_priority_scheduling_data();
+      }
+      if (data.selected.includes("Round Robin")) {
+        get_round_robin_data(data.timeQuantum);
+      }
     }
   };
+
+  const get_ai_data = async () => {
+    try{
+      const response = await fetch('http://localhost:5000/generate_ai_response');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      const data = await response.json();
+      setAiData(data)
+      console.log("AI DATA :", data); 
+      const all = ["FCFS", "SJF", "Priority", "Round Robin"];
+      const selected = data.predicted_best_algo;
+
+      const remaining = all.filter(a => a !== selected);
+      console.log("Remaining Algos :", remaining);  
+
+      setAiAlgo(selected);
+      setRemainingAlgos(remaining);
+
+      if (selected === 'SJF') get_sjf_scheduling_data();
+      else if (selected === 'FCFS') get_fcfs_scheduling_data();
+      else if (selected === 'RR') get_round_robin_data(data.best_time_quantum_if_rr);
+      else if (selected === 'Priority') get_priority_scheduling_data();
+      else console.warn("Invalid AI algo");
+
+    }catch (error) {
+      console.error("Error fetching AI scheduling data:", error);
+    }
+  }
   
 
   const get_fcfs_scheduling_data = async () => {
@@ -169,6 +241,14 @@ export default function ProcessTable() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+  const metricNameMap = {
+    avg_rt: "Average Response Time",
+    avg_tat: "Average Turnaround Time",
+    avg_wt: "Average Waiting Time",
+    fairness: "Fairness Score",
+    priority_violations: "Priority Violations",
+    starved: "Starved Processes"
+  };
 
   return (
     <div className="p-4 text-left">
@@ -256,11 +336,14 @@ export default function ProcessTable() {
           Submit Data
         </button>
       </div>
-      <Popup
-        isOpen={showPopup}
-        onClose={() => setShowPopup(false)}
-        onSubmit={handlePopupSubmit}
-      />
+      {!aiAlgo && (
+        <Popup
+          isOpen={showPopup}
+          onClose={() => setShowPopup(false)}
+          onSubmit={handlePopupSubmit}
+          // onResponseType={handleResponseType}
+        />
+      )}
       {/* <div className="w-fit mx-auto m-10">
         {chart && (
             <>
@@ -270,30 +353,71 @@ export default function ProcessTable() {
         )} */}
       {/* </div> */}
       {/* Gantt chart section */}
-      {ganttData.length > 0 && (
-        <div className="mt-4">
-          {/* <h2 className="text-xl font-semibold mb-2">Gantt Chart</h2> */}
-          <GanttChart algoTitle={"FCFS Scheduling Algorithm"} ganttData={ganttData} />
+      <AlgoCharts ganttData = {ganttData} sjfGanttData = {sjfGanttData} priorityGanttData = {priorityGanttData} roundRobinGanttData = {roundRobinGanttData} />
+      
+      {aiAlgo && (
+        <div>
+          <div className="text-left mt-6">
+            <h2 className="text-xl font-bold mb-2">AI Suggested: {aiAlgo}</h2>
+            <div className="flex justify-start gap-4 mt-4">
+              <button onClick={scrollToWhy} className="px-4 py-2 bg-purple-500 text-white rounded">
+                Why?
+              </button>
+              <button onClick={scrollToMetrics} className="px-4 py-2 bg-indigo-500 text-white rounded">
+                Show Soft Metrics
+              </button>
+              <button onClick={() => setShowPopup(true)} className="px-4 py-2 bg-yellow-500 text-black rounded">
+                Need Other Algos
+              </button>
+            </div>
+          </div>
+          {showAiWhy && (
+            <div ref = {whyRef} className="mt-4 p-4 border border-gray-300 rounded bg-white shadow-md">
+              <h3 className="font-semibold mb-2">Why this algorithm?</h3>
+              {/* <p>The AI chose <strong>{aiAlgo}</strong> because it had the best combination of turnaround time, waiting time, fairness, and priority respect based on the process set.</p> */}
+              {aiData.explanation}
+            </div>
+          )}
+    
+          {showSoftMetrics && (
+            <div ref={metricsRef} className="mt-4 p-4 border border-gray-300 rounded bg-white shadow-md">
+              <button className="float-right mr-2 px-3 py-1 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-100 transition"
+              onClick={()=>setShowSoftMetrics(false)}>
+                  Hide
+              </button>
+    
+              <h3 className="text-xl font-bold mb-2">Soft Metrics</h3>
+              {/* Replace this with actual metrics component if needed */}
+              <ul>
+                {Object.entries(aiData.soft_metrics).map(([algo, metrics]) => (
+                  <li key={algo} style={{ marginBottom: "1rem" }}>
+                    <span style={{ fontWeight: "700" }}>{algo}</span>
+                    <div style={{ marginLeft: "1rem", color: "#666", fontSize: "0.95rem" }}>
+                      {Object.entries(metrics).map(([metric, value], index, arr) => (
+                        <span key={metric}>
+                          <span style={{ fontWeight: 600 }}>{metricNameMap[metric] || metric}:</span> {value}
+                          {index < arr.length - 1 ? ", " : "."}
+                        </span>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <Popup
+          isOpen={showPopup}
+          onClose={() => setShowPopup(false)}
+          onSubmit={handlePopupSubmit}
+          // onResponseType={handleResponseType}
+          algoList={remainingAlgos}
+          aiButton={false}
+          />
+
         </div>
       )}
-      {sjfGanttData.length > 0 && (
-        <div className="">
-          {/* <h2 className="text-xl font-semibold mb-2">Gantt Chart</h2> */}
-          <GanttChart algoTitle = {"SJF Scheduling Algorithm"} ganttData={sjfGanttData} />
-        </div>
-      )}
-      {priorityGanttData.length > 0 && (
-        <div className="">
-          {/* <h2 className="text-xl font-semibold mb-2">Gantt Chart</h2> */}
-          <GanttChart algoTitle = {"Priority Scheduling Algorithm"} ganttData={priorityGanttData} />
-        </div>
-      )}
-      {roundRobinGanttData.length > 0 && (
-        <div className="">
-          {/* <h2 className="text-xl font-semibold mb-2">Gantt Chart</h2> */}
-          <GanttChart algoTitle = {"Round Robin Scheduling Algorithm"} ganttData={roundRobinGanttData} />
-        </div>
-      )}
+      
+      
     </div>
   );
 }

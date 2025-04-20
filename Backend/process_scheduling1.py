@@ -1,8 +1,6 @@
 import json
 import matplotlib.pyplot as plt
-import sys
-import io
-import base64
+import heapq
 
 
 def fcfs_scheduling(processes):
@@ -22,70 +20,132 @@ def fcfs_scheduling(processes):
     return processes, avg_tat, avg_wt, gantt_log
 
 
+# def sjf_preemptive(processes):
+#     n = len(processes)
+#     remaining = [p['burstTime'] for p in processes]
+#     initial_burst = [p['burstTime'] for p in processes]
+#     complete = 0
+#     time = 0
+#     minm = float('inf')
+#     shortest = -1
+#     check = False
+#     gantt_log = []
+#     prev = -1
+
+#     # Track total executed time per process
+#     executed_time = {p['id']: 0 for p in processes}
+#     segment_executed = 0  # tracks time in the current segment
+
+#     while complete != n:
+#         for i in range(n):
+#             if (processes[i]['arrivalTime'] <= time and
+#                     remaining[i] < minm and remaining[i] > 0):
+#                 minm = remaining[i]
+#                 shortest = i
+#                 check = True
+
+#         if not check:
+#             time += 1
+#             continue
+
+#         process_id = processes[shortest]['id']
+
+#         # Detect context switch
+#         if prev != shortest:
+#             if gantt_log and 'end' not in gantt_log[-1]:
+#                 gantt_log[-1]['end'] = time
+#             gantt_log.append({
+#                 'id': process_id,
+#                 'start': time
+#             })
+#             segment_executed = 0  # reset for new segment
+#             prev = shortest
+
+#         # Execute 1 unit of time
+#         remaining[shortest] -= 1
+#         executed_time[process_id] += 1
+#         segment_executed += 1
+#         time += 1
+
+#         # Percent complete for this segment
+#         percent = (segment_executed / initial_burst[shortest]) * 100
+#         gantt_log[-1]['percent_complete'] = round(percent, 2)
+
+#         if remaining[shortest] == 0:
+#             complete += 1
+#             finish_time = time
+#             processes[shortest]['completion_time'] = finish_time
+#             processes[shortest]['turnaround_time'] = finish_time - processes[shortest]['arrivalTime']
+#             processes[shortest]['waiting_time'] = processes[shortest]['turnaround_time'] - processes[shortest]['burstTime']
+#             gantt_log[-1]['end'] = finish_time
+
+#         minm = float('inf')
+#         check = False
+
+#     if gantt_log and 'end' not in gantt_log[-1]:
+#         gantt_log[-1]['end'] = time
+
+#     avg_tat = sum(p['turnaround_time'] for p in processes) / n
+#     avg_wt = sum(p['waiting_time'] for p in processes) / n
+#     return processes, avg_tat, avg_wt, gantt_log
+
+
+
+
 def sjf_preemptive(processes):
     n = len(processes)
-    remaining = [p['burstTime'] for p in processes]
-    initial_burst = [p['burstTime'] for p in processes]
-    complete = 0
+    processes = sorted(processes, key=lambda x: x['arrivalTime'])  # Sort by arrival time
+    ready_queue = []
     time = 0
-    minm = float('inf')
-    shortest = -1
-    check = False
+    idx = 0
+    complete = 0
     gantt_log = []
-    prev = -1
-
-    # Track total executed time per process
+    prev_id = -1
     executed_time = {p['id']: 0 for p in processes}
-    segment_executed = 0  # tracks time in the current segment
+    burst_time = {p['id']: p['burstTime'] for p in processes}
 
-    while complete != n:
-        for i in range(n):
-            if (processes[i]['arrivalTime'] <= time and
-                    remaining[i] < minm and remaining[i] > 0):
-                minm = remaining[i]
-                shortest = i
-                check = True
+    while complete < n:
+        while idx < n and processes[idx]['arrivalTime'] <= time:
+            heapq.heappush(ready_queue, (processes[idx]['burstTime'], processes[idx]['id'], idx))
+            idx += 1
 
-        if not check:
-            time += 1
+        if not ready_queue:
+            time = processes[idx]['arrivalTime']
             continue
 
-        process_id = processes[shortest]['id']
+        _, pid, i = heapq.heappop(ready_queue)
 
-        # Detect context switch
-        if prev != shortest:
+        # Start new gantt segment
+        if prev_id != pid:
             if gantt_log and 'end' not in gantt_log[-1]:
                 gantt_log[-1]['end'] = time
-            gantt_log.append({
-                'id': process_id,
-                'start': time
-            })
-            segment_executed = 0  # reset for new segment
-            prev = shortest
+                # Calculate percentage for the previous segment
+                duration = gantt_log[-1]['end'] - gantt_log[-1]['start']
+                gantt_log[-1]['percent_complete'] = round((duration / burst_time[prev_id]) * 100, 2)
+            gantt_log.append({'id': pid, 'start': time})
+            prev_id = pid
 
-        # Execute 1 unit of time
-        remaining[shortest] -= 1
-        executed_time[process_id] += 1
-        segment_executed += 1
         time += 1
-
-        # Percent complete for this segment
-        percent = (segment_executed / initial_burst[shortest]) * 100
-        gantt_log[-1]['percent_complete'] = round(percent, 2)
-
-        if remaining[shortest] == 0:
+        executed_time[pid] += 1
+        remaining = burst_time[pid] - executed_time[pid]
+        if remaining == 0:
             complete += 1
             finish_time = time
-            processes[shortest]['completion_time'] = finish_time
-            processes[shortest]['turnaround_time'] = finish_time - processes[shortest]['arrivalTime']
-            processes[shortest]['waiting_time'] = processes[shortest]['turnaround_time'] - processes[shortest]['burstTime']
-            gantt_log[-1]['end'] = finish_time
+            processes[i]['completion_time'] = finish_time
+            processes[i]['turnaround_time'] = finish_time - processes[i]['arrivalTime']
+            processes[i]['waiting_time'] = processes[i]['turnaround_time'] - processes[i]['burstTime']
+            gantt_log[-1]['end'] = time
+            # Calculate percentage for the final segment
+            duration = gantt_log[-1]['end'] - gantt_log[-1]['start']
+            gantt_log[-1]['percent_complete'] = round((duration / burst_time[pid]) * 100, 2)
+        else:
+            heapq.heappush(ready_queue, (remaining, pid, i))
 
-        minm = float('inf')
-        check = False
-
+    # Closing any remaining gantt block
     if gantt_log and 'end' not in gantt_log[-1]:
         gantt_log[-1]['end'] = time
+        duration = gantt_log[-1]['end'] - gantt_log[-1]['start']
+        gantt_log[-1]['percent_complete'] = round((duration / burst_time[prev_id]) * 100, 2)
 
     avg_tat = sum(p['turnaround_time'] for p in processes) / n
     avg_wt = sum(p['waiting_time'] for p in processes) / n
@@ -97,56 +157,116 @@ def sjf_preemptive(processes):
 
 
 
-def priority_preemptive(processes):
-    time = 0
-    complete = 0
-    n = len(processes)
-    remaining = [p['burstTime'] for p in processes]
-    burst_time = [p['burstTime'] for p in processes]
-    executed_time = {p['id']: 0 for p in processes}
-    gantt_log = []
-    prev = -1
-    segment_executed = 0
+# def priority_preemptive(processes):
+#     time = 0
+#     complete = 0
+#     n = len(processes)
+#     remaining = [p['burstTime'] for p in processes]
+#     burst_time = [p['burstTime'] for p in processes]
+#     executed_time = {p['id']: 0 for p in processes}
+#     gantt_log = []
+#     prev = -1
+#     segment_executed = 0
 
-    while complete != n:
-        available = [i for i in range(n) if processes[i]['arrivalTime'] <= time and remaining[i] > 0]
-        if not available:
-            time += 1
+#     while complete != n:
+#         available = [i for i in range(n) if processes[i]['arrivalTime'] <= time and remaining[i] > 0]
+#         if not available:
+#             time += 1
+#             continue
+
+#         # Assuming lower numerical value = higher priority
+#         highest_priority = min(available, key=lambda x: processes[x]['priority'])
+#         current_id = processes[highest_priority]['id']
+
+#         # Detect context switch
+#         if prev != highest_priority:
+#             if gantt_log and 'end' not in gantt_log[-1]:
+#                 gantt_log[-1]['end'] = time
+#             gantt_log.append({'id': current_id, 'start': time})
+#             segment_executed = 0
+#             prev = highest_priority
+
+#         # Execute for 1 unit
+#         remaining[highest_priority] -= 1
+#         executed_time[current_id] += 1
+#         segment_executed += 1
+#         time += 1
+
+#         # Update percentage for current segment
+#         percent = (segment_executed / burst_time[highest_priority]) * 100
+#         gantt_log[-1]['percent_complete'] = round(percent, 2)
+
+#         if remaining[highest_priority] == 0:
+#             complete += 1
+#             finish_time = time
+#             processes[highest_priority]['completion_time'] = finish_time
+#             processes[highest_priority]['turnaround_time'] = finish_time - processes[highest_priority]['arrivalTime']
+#             processes[highest_priority]['waiting_time'] = processes[highest_priority]['turnaround_time'] - processes[highest_priority]['burstTime']
+#             gantt_log[-1]['end'] = finish_time
+
+#     # Close any remaining gantt block
+#     if gantt_log and 'end' not in gantt_log[-1]:
+#         gantt_log[-1]['end'] = time
+
+#     avg_tat = sum(p['turnaround_time'] for p in processes) / n
+#     avg_wt = sum(p['waiting_time'] for p in processes) / n
+#     return processes, avg_tat, avg_wt, gantt_log
+
+
+def priority_preemptive(processes):
+    n = len(processes)
+    processes = sorted(processes, key=lambda x: x['arrivalTime'])  # Sort by arrival time
+    ready_queue = []
+    time = 0
+    idx = 0
+    complete = 0
+    gantt_log = []
+    prev_id = -1
+    executed_time = {p['id']: 0 for p in processes}
+    burst_time = {p['id']: p['burstTime'] for p in processes}
+
+    while complete < n:
+        while idx < n and processes[idx]['arrivalTime'] <= time:
+            heapq.heappush(ready_queue, (processes[idx]['priority'], processes[idx]['id'], idx))
+            idx += 1
+
+        if not ready_queue:
+            time = processes[idx]['arrivalTime']
             continue
 
-        # Assuming lower numerical value = higher priority
-        highest_priority = min(available, key=lambda x: processes[x]['priority'])
-        current_id = processes[highest_priority]['id']
+        _, pid, i = heapq.heappop(ready_queue)
 
-        # Detect context switch
-        if prev != highest_priority:
+        # Start new gantt segment
+        if prev_id != pid:
             if gantt_log and 'end' not in gantt_log[-1]:
                 gantt_log[-1]['end'] = time
-            gantt_log.append({'id': current_id, 'start': time})
-            segment_executed = 0
-            prev = highest_priority
+                # Calculate percentage for the previous segment
+                duration = gantt_log[-1]['end'] - gantt_log[-1]['start']
+                gantt_log[-1]['percent_complete'] = round((duration / burst_time[prev_id]) * 100, 2)
+            gantt_log.append({'id': pid, 'start': time})
+            prev_id = pid
 
-        # Execute for 1 unit
-        remaining[highest_priority] -= 1
-        executed_time[current_id] += 1
-        segment_executed += 1
         time += 1
-
-        # Update percentage for current segment
-        percent = (segment_executed / burst_time[highest_priority]) * 100
-        gantt_log[-1]['percent_complete'] = round(percent, 2)
-
-        if remaining[highest_priority] == 0:
+        executed_time[pid] += 1
+        remaining = burst_time[pid] - executed_time[pid]
+        if remaining == 0:
             complete += 1
             finish_time = time
-            processes[highest_priority]['completion_time'] = finish_time
-            processes[highest_priority]['turnaround_time'] = finish_time - processes[highest_priority]['arrivalTime']
-            processes[highest_priority]['waiting_time'] = processes[highest_priority]['turnaround_time'] - processes[highest_priority]['burstTime']
-            gantt_log[-1]['end'] = finish_time
+            processes[i]['completion_time'] = finish_time
+            processes[i]['turnaround_time'] = finish_time - processes[i]['arrivalTime']
+            processes[i]['waiting_time'] = processes[i]['turnaround_time'] - processes[i]['burstTime']
+            gantt_log[-1]['end'] = time
+            # Calculate percentage for the final segment
+            duration = gantt_log[-1]['end'] - gantt_log[-1]['start']
+            gantt_log[-1]['percent_complete'] = round((duration / burst_time[pid]) * 100, 2)
+        else:
+            heapq.heappush(ready_queue, (processes[i]['priority'], pid, i))
 
-    # Close any remaining gantt block
+    # Closing any remaining gantt block
     if gantt_log and 'end' not in gantt_log[-1]:
         gantt_log[-1]['end'] = time
+        duration = gantt_log[-1]['end'] - gantt_log[-1]['start']
+        gantt_log[-1]['percent_complete'] = round((duration / burst_time[prev_id]) * 100, 2)
 
     avg_tat = sum(p['turnaround_time'] for p in processes) / n
     avg_wt = sum(p['waiting_time'] for p in processes) / n

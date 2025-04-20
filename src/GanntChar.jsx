@@ -87,12 +87,17 @@
 // }
 import { Chart } from "react-google-charts";
 
-export default function GanttChart({algoTitle,  ganttData }) {
+export default function GanttChart({algoTitle,  Data }) {
+  const ganttData = Data.gantt_log;
+  const avg_tat = Data.avg_tat;
+  const avg_wt = Data.avg_wt;
+  // console.log(ganttData);
+  
   // Base start time
   const latestEnd = Math.max(...ganttData.map((entry) => entry.end));
   const baseTime = new Date(2023, 0, 1, 0, 0, 0); // Jan 1, 2023 09:00:00
   // const baseTime = new Date(0)
-
+  
   // Padding to extend chart visibility
   // const extendedData = [
   //   ...ganttData
@@ -103,7 +108,7 @@ export default function GanttChart({algoTitle,  ganttData }) {
   //   //   isPadding: true,
   //   // },
   // ];
-
+  
   // Timeline-specific chart data
   const chartData = [
     [
@@ -151,6 +156,9 @@ export default function GanttChart({algoTitle,  ganttData }) {
       <h2 className="text-2xl font-semibold text-center text-gray-700 mb-4">
         {algoTitle}
       </h2>
+      <p className="text-base font-medium text-gray-700 m-2">
+        Average Turn-around Time: {avg_tat.toFixed(3)} &nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp; Average Waiting Time: {avg_wt.toFixed(3)}
+      </p>
 
       <Chart
         chartType="Timeline"

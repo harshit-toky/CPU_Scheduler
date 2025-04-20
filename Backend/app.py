@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS  # To allow React to communicate with Flask
 import json
 from process_scheduling1 import fcfs_scheduling, sjf_preemptive, priority_preemptive, round_robin_scheduling
+from predict_best_algo import predict_best_algo
+import os
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS to allow frontend requests
@@ -49,7 +51,7 @@ def send_fcfs_ganttLog():
     try:
         processes = load_processes_from_json('processes.json')
         process, avg_tat, avg_wt, gantt_log = fcfs_scheduling(processes)
-        return jsonify(gantt_log), 200
+        return jsonify({"gantt_log" :gantt_log, "avg_tat" : avg_tat, "avg_wt" : avg_wt}), 200
     except Exception as e:
         print(e)
         return jsonify({"error" : str(e)}), 400
@@ -58,7 +60,7 @@ def send_sjf_ganttLog():
     try:
         processes = load_processes_from_json('processes.json')
         process, avg_tat, avg_wt, gantt_log = sjf_preemptive(processes)
-        return jsonify(gantt_log), 200
+        return jsonify({"gantt_log" :gantt_log, "avg_tat" : avg_tat, "avg_wt" : avg_wt}), 200
     except Exception as e:
         print(e)
         return jsonify({"error" : str(e)}), 400
@@ -67,7 +69,7 @@ def send_priority_ganttLog():
     try:
         processes = load_processes_from_json('processes.json')
         process, avg_tat, avg_wt, gantt_log = priority_preemptive(processes)
-        return jsonify(gantt_log), 200
+        return jsonify({"gantt_log" :gantt_log, "avg_tat" : avg_tat, "avg_wt" : avg_wt}), 200
     except Exception as e:
         print(e)
         return jsonify({"error" : str(e)}), 400
@@ -77,9 +79,24 @@ def send_roundRobin_ganttLog():
         time_quantum = request.args.get('timeQuantum', type=int)
         processes = load_processes_from_json('processes.json')
         process, avg_tat, avg_wt, gantt_log = round_robin_scheduling(processes, time_quantum)
-        return jsonify(gantt_log), 200
+        return jsonify({"gantt_log" :gantt_log, "avg_tat" : avg_tat, "avg_wt" : avg_wt}), 200
     except Exception as e:
         print(e)
         return jsonify({"error" : str(e)}), 400
+    
+@app.route('/generate_ai_response', methods=['GET'])
+def send_AI_Response():
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(script_dir, "processes.json")
+        with open(file_path) as f:
+            data = json.load(f)
+        result = predict_best_algo(data)
+        print(result)
+        return jsonify(result), 200
+    except Exception as e:
+        print(e)
+        return jsonify({"Error" : str(e)}), 400
+
 if __name__ == '__main__':
     app.run(debug=True)
